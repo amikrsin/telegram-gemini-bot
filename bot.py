@@ -1,3 +1,4 @@
+import os
 import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
@@ -8,8 +9,9 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-TELEGRAM_BOT_TOKEN = "8882717840:AAF5IgwDbHpmjdqgVf-nQ1vWoSePF_iZj1o"
-GEMINI_API_KEY = "AQ.Ab8RN6K8GHB8dNtEz3brgv1Plswl9jRjneOhY66EjAKZcMJ2Eg"
+# API Keys from Environment Variables (Security Best Practice)
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 

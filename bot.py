@@ -1,5 +1,7 @@
 import os
 import logging
+from threading import Thread
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from google import genai
@@ -13,6 +15,20 @@ logging.basicConfig(
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
+# --- Dummy HTTP Health Check Server (Render Port Binding Fix) ---
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is running live on Render!")
+
+def run_dummy_server():
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(("0.0.0.0", port), SimpleHTTPRequestHandler)
+    print(f"Health check server listening on port {port}")
+    server.serve_forever()
+
+# --- Telegram Bot Logic ---
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("👋 Hello! Mujhe kisi product ka naam bhejiye, main price check karke batata hoon.")
 
@@ -21,7 +37,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status_msg = await update.message.reply_text("🔎 Product ke live price aur offers search ho rahe hain...")
 
     try:
-        # Pass API key with v1alpha options for developer API keys
         client = genai.Client(
             api_key=GEMINI_API_KEY,
             http_options={'api_version': 'v1alpha'}
@@ -50,6 +65,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await status_msg.edit_text(f"❌ Error: {str(e)}")
 
 def main():
+    # Start Dummy Web Server in background thread for Render
+    server_thread = Thread(target=run_dummy_server, daemon=True)
+    server_thread.start()
+
     print("Bot Starting on Render...")
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 

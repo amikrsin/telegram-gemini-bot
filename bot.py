@@ -1,9 +1,8 @@
 import os
 import logging
+import requests
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-from google import genai
-from google.genai import types
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -11,47 +10,50 @@ logging.basicConfig(
 )
 
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+# OpenWebNinja API Key yahan environment variable ya direct set kar sakte hain
+PRODUCT_API_KEY = os.environ.get("PRODUCT_API_KEY", "ak_vkc5a52ocak1wsnp1iatmtoeikurrospvxbnofl8y6eazg9")
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 Hello! Mujhe kisi product ka naam bhejiye, main price check karke batata hoon.")
+    await update.message.reply_text("👋 Hello! Mujhe kisi product ka naam bhejiye, main live e-commerce prices search karke batata hoon.")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    status_msg = await update.message.reply_text("🔎 Product ke live price aur offers search ho rahe hain...")
+    query_text = update.message.text
+    status_msg = await update.message.reply_text("🔎 Live e-commerce prices fetch ho rahe hain...")
 
     try:
-        # Pass API key with v1alpha options
-        client = genai.Client(
-            api_key=GEMINI_API_KEY,
-            http_options={'api_version': 'v1alpha'}
+        headers = {
+            "X-API-Key": PRODUCT_API_KEY
+        }
+        
+        # OpenWebNinja Realtime Product Search API Call
+        response = requests.get(
+            'https://api.openwebninja.com/realtime-product-search/search-light-v2',
+            params={"q": query_text},
+            headers=headers,
+            timeout=10
         )
 
-        prompt = (
-            f"Search the web for current online store prices of '{text}' in India (Amazon, Flipkart, Croma, etc.). "
-            f"Provide a short summary containing:\n"
-            f"1. Current Best Price (INR)\n"
-            f"2. Available Stores / Sellers\n"
-            f"3. Active Bank Deals or Coupon Offers (if any)\n"
-            f"4. Top 2 Alternative options in same budget"
-        )
+        if response.status_code == 200:
+            data = response.json()
+            products = data.get('products', []) # API response structure ke mutabik
 
-        # Updated to Gemini 3.6 Flash model for Search Grounding
-        response = client.models.generate_content(
-            model="gemini-3.6-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())]
-            )
-        )
-
-        if response.text:
-            await status_msg.edit_text(response.text)
+            if products:
+                reply_text = f"🛒 **Live Search Results for '{query_text}':**\n\n"
+                # Top 3 products dikhayein
+                for idx, p in enumerate(products[:3], 1):
+                    title = p.get('title', 'N/A')
+                    price = p.get('price', 'N/A')
+                    link = p.get('link', '#')
+                    reply_text += f"{idx}. **{title}**\n💰 Price: {price}\n🔗 [View Product]({link})\n\n"
+                
+                await status_msg.edit_text(reply_text, parse_mode="Markdown", disable_web_page_preview=True)
+            else:
+                await status_msg.edit_text("❌ Is product ke liye koi live results nahi mile.")
         else:
-            await status_msg.edit_text("❌ Product details nahi mil payein.")
+            await status_msg.edit_text(f"❌ API Error: Status code {response.status_code}")
 
     except Exception as e:
-        print(f"Gemini API Error: {e}")
+        print(f"API Request Error: {e}")
         await status_msg.edit_text(f"❌ Error: {str(e)}")
 
 def main():

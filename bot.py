@@ -21,16 +21,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         headers = {
-            "X-API-Key": PRODUCT_API_KEY
+            'x-api-key': PRODUCT_API_KEY
         }
         
-        # Updated OpenWeb Ninja v2 endpoint and parameters
+        # Official v2 endpoint with query parameters (Fixed syntax)
         response = requests.get(
-            'https://api.openwebninja.com/realtime-product-search/search',
+            'https://api.openwebninja.com/realtime-product-search/v2/search',
             params={
                 "q": query_text,
-                "gl": "in",  . # Country location (India)
-                "hl": "en"
+                "gl": "in"
             },
             headers=headers,
             timeout=15
@@ -38,9 +37,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if response.status_code == 200:
             data = response.json()
-            print("API Response Data:", data)
+            print("API Response:", data)
 
-            # Extracting product lists safely from v2 response structure
             products = data.get('data', []) or data.get('products', []) or data.get('shopping_results', [])
 
             if products:
@@ -54,7 +52,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 await status_msg.edit_text(reply_text, parse_mode="Markdown", disable_web_page_preview=True)
             else:
-                await status_msg.edit_text(f"❌ Is product ke liye koi live results nahi mile.")
+                await status_msg.edit_text("❌ Is product ke liye koi live results nahi mile.")
         else:
             await status_msg.edit_text(f"❌ API Error: Status code {response.status_code}")
 

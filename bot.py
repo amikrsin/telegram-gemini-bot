@@ -9,9 +9,12 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# API Keys from Environment Variables (Security Best Practice)
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+
+# Explicit API Key check
+if not GEMINI_API_KEY:
+    raise ValueError("GEMINI_API_KEY environment variable missing hai!")
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 

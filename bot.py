@@ -73,11 +73,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         continue
                     shown += 1
                     idx = shown
-                    title = p.get('title') or p.get('name') or 'N/A'
-                    price = p.get('price') or p.get('extracted_price') or p.get('detected_price') or 'N/A'
-                    link = p.get('link') or p.get('product_link') or p.get('url') or '#'
 
-                    reply_text += f"{idx}. **{title}**\n💰 Price: {price}\n🔗 [View Product]({link})\n\n"
+                    title = p.get('product_title') or p.get('title') or p.get('name') or 'N/A'
+
+                    # Real price, store name, and buy link live inside the first offer
+                    offers = p.get('offers') or []
+                    first_offer = offers[0] if offers and isinstance(offers[0], dict) else {}
+
+                    price = (
+                        first_offer.get('price')
+                        or p.get('price')
+                        or (p.get('typical_price_range') or [None])[0]
+                        or 'N/A'
+                    )
+                    store = first_offer.get('store_name') or 'Unknown store'
+                    link = (
+                        first_offer.get('offer_page_url')
+                        or p.get('product_page_url')
+                        or p.get('link')
+                        or '#'
+                    )
+
+                    reply_text += (
+                        f"{idx}. **{title}**\n"
+                        f"💰 Price: {price} ({store})\n"
+                        f"🔗 [View Product]({link})\n\n"
+                    )
 
                 if shown:
                     await status_msg.edit_text(reply_text, parse_mode="Markdown", disable_web_page_preview=True)

@@ -46,17 +46,43 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if response.status_code == 200:
             data = response.json()
             print("API Response:", data)
-            products = data.get('data', []) or data.get('products', []) or data.get('shopping_results', [])
+
+            raw = data.get('data') or data.get('products') or data.get('shopping_results') or []
+
+            if isinstance(raw, dict):
+                # Sometimes the list is nested one level deeper, e.g. data['data']['products']
+                products = (
+                    raw.get('products')
+                    or raw.get('shopping_results')
+                    or raw.get('data')
+                    or raw.get('results')
+                    or []
+                )
+            elif isinstance(raw, list):
+                products = raw
+            else:
+                products = []
+
             if products:
                 reply_text = f"🛒 **Live Search Results for '{query_text}':**\n\n"
-                for idx, p in enumerate(products[:3], 1):
+                shown = 0
+                for p in products:
+                    if shown >= 3:
+                        break
+                    if not isinstance(p, dict):
+                        continue
+                    shown += 1
+                    idx = shown
                     title = p.get('title') or p.get('name') or 'N/A'
                     price = p.get('price') or p.get('extracted_price') or p.get('detected_price') or 'N/A'
                     link = p.get('link') or p.get('product_link') or p.get('url') or '#'
 
                     reply_text += f"{idx}. **{title}**\n💰 Price: {price}\n🔗 [View Product]({link})\n\n"
 
-                await status_msg.edit_text(reply_text, parse_mode="Markdown", disable_web_page_preview=True)
+                if shown:
+                    await status_msg.edit_text(reply_text, parse_mode="Markdown", disable_web_page_preview=True)
+                else:
+                    await status_msg.edit_text("❌ Is product ke liye koi live results nahi mile.")
             else:
                 await status_msg.edit_text("❌ Is product ke liye koi live results nahi mile.")
         else:
